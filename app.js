@@ -1,9 +1,11 @@
 import { Telegraf } from 'telegraf'
 import mongoose from 'mongoose'
+import dotenv from 'dotenv'
+dotenv.config()
 
-const botToken = '...'
+const botToken = process.env.TELEGRAM_BOT_TOKEN
 const bot = new Telegraf(botToken)
-const mongoURL = '...'
+const mongoURL = process.env.MONGODB_URL
 
 mongoose
   .connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
