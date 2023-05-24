@@ -1,0 +1,12 @@
+{
+  "name": "playloop-bot",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Telegram bot to sign up for beta testing of Playloop.ru",
+  "main": "app.js",
+  "scripts": {
+    "dev": "node app.js"
+  },
+  "author": "drxid",
+  "license": "ISC"
+}
