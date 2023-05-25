@@ -5,13 +5,15 @@
   "description": "Telegram bot to sign up for beta testing of Playloop.ru",
   "main": "app.js",
   "scripts": {
-    "dev": "node app.js"
+    "dev": "nodemon ./src/app.js",
+    "start": "node ./src/app.js"
   },
   "author": "drxid",
   "license": "ISC",
   "dependencies": {
     "dotenv": "^16.0.3",
     "mongoose": "^7.2.0",
+    "nodemon": "^2.0.22",
     "telegraf": "^4.12.2"
   }
 }
