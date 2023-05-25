@@ -2,10 +2,14 @@ import { Telegraf, Markup } from 'telegraf'
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
 
+import AccessData from './schema/accessDataSchema.js'
+import texts from './data/texts.json' assert { type: 'json' }
+
 dotenv.config()
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN
 const mongoURL = process.env.MONGODB_URL
+const channelUsername = process.env.CHANNEL_USERNAME
 
 const bot = new Telegraf(botToken)
 
@@ -17,87 +21,64 @@ mongoose
     process.exit(1)
   })
 
-const accessDataSchema = new mongoose.Schema({
-  userId: Number,
-  nickname: String,
-  date: Date,
-})
-
-const AccessData = mongoose.model('AccessData', accessDataSchema)
-
 bot.command('start', (ctx) => {
   const subscriptionButton = Markup.inlineKeyboard([
-    Markup.button.callback('Проверить подписку', 'check_subscription'),
+    Markup.button.callback(texts.buttonCheckSub, 'check_subscription'),
   ])
 
-  ctx.reply(
-    `👋 Здравствуйте
-Мы будем рады записать вас на бета-тестирование нашего приложения и поделиться с вами промокодом
-Необходимо только подписаться на наш телеграм канал @PlayloopApp, и нажать кнопку 👇`,
-    subscriptionButton
-  )
+  ctx.reply(texts.hello, subscriptionButton)
 })
 
 bot.action('check_subscription', async (ctx) => {
-  const userId = ctx.from.id
-  const channelUsername = process.env.CHANNEL_USERNAME
-
   try {
+    const userId = ctx.from.id
     const chatMember = await ctx.getChatMember(userId, channelUsername)
 
     if (chatMember && chatMember.status === 'member') {
-      await ctx.reply('Спасибо за подписку на @PlayloopApp!')
-
-      await ctx.reply(`🥳 Ура! Промокод уже ваш!
-Промокод: WINTERGREEN
-Вам доступно 3 дня бесплатной подписки Flash, доступ к озвучке сюжетных приключений настольных игр и к всем коллекциям звуков в Миксере ⚡️📦
-
-Вы сможете воспользоватся промокодом сразу после получения бета доступа к приложению.`)
-
-      await ctx.reply(`☕️ Пара шагов до тестирования атмосферных партий
-Для записи на бета-тест, пришлите свой ник/почту на сайте в ответном сообщении`)
+      await ctx.reply(texts.thanksForSub)
+      await ctx.reply(texts.givePromo)
+      await ctx.reply(texts.signUpForTesting)
 
       bot.on('message', async (ctx) => {
         const userId = ctx.from.id
         const nickname = ctx.message.text
-        const currentDate = Date.now()
+        const currentDate = new Date()
 
-        if (chatMember && chatMember.status === 'member') {
+        const existingUser = await AccessData.findOne({ userId })
+
+        const addInfoToDB = async () => {
           try {
-            const existingUser = await AccessData.findOne({ userId })
-
-            if (existingUser) {
-              const timeDiffMinutes = (currentDate - existingUser.date) / (1000 * 60)
-
-              if (timeDiffMinutes >= 2) {
-                existingUser.nickname = nickname
-                existingUser.date = currentDate
-                await existingUser.save()
-                ctx.reply('Ваши данные доступа были обновлены.')
-              } else {
-                ctx.reply('Данные нельзя обновлять чаще 2 минут! Попробуйте попозже.')
-              }
-              
-            } else {
+            if (!existingUser) {
               const accessData = new AccessData({ userId, nickname, currentDate })
               await accessData.save()
-
-              ctx.reply(`Ваши данные доступа были сохранены, периодически мы добавляем новых пользователей для тестирования и вы уже в очереди!
-Оставайтесь на связи, мы скоро вам напишем! 🎲⚔️⭐🏹🛡️🦂🐉`)
+              ctx.reply(texts.signUpForTestingDone)
+              return
             }
+
+            const timeDiffMinutes = Math.floor((new Date() - existingUser.currentDate) / 1000 / 60)
+            if (timeDiffMinutes >= 2) {
+              existingUser.nickname = nickname
+              existingUser.currentDate = new Date()
+              await existingUser.save()
+              ctx.reply(texts.dataUpdated)
+            } else {
+              ctx.reply(texts.timeout)
+            }
+
           } catch (e) {
             console.error('Error on saving in MongoDB:', e)
-            ctx.reply('Извините, что-то пошло не так.')
+            ctx.reply(texts.errBase)
           }
         }
+
+        addInfoToDB()
       })
     } else {
-      await ctx.reply(`💁‍♂️ Подпишитесь на канал
-Чтобы получить промокод и записаться на бета-тест, необходимо подписаться на наш телеграм канал @PlayloopApp`)
+      await ctx.reply(texts.dontSub)
     }
   } catch (e) {
     console.error('Error checking subscription:', e)
-    ctx.reply('Извините, что-то пошло не так при проверке вашей подписки на наш телеграм канал @PlayloopApp')
+    ctx.reply(texts.errSub)
   }
 })
 
